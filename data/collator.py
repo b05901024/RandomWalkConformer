@@ -73,7 +73,7 @@ def pad_1d(x, pad_len):
     x_len = x.size(0)
     if x_len < pad_len:
         x_pad = torch.zeros([pad_len], dtype=x.dtype)
-        x_pad[:x_len]
+        x_pad[:x_len] = x
         x = x_pad
     return x.unsqueeze(0)
 

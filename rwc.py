@@ -36,6 +36,7 @@ class RandomWalkConformer(pl.LightningModule):
         num_class=1,
         win_size=8,
         kernel_size=9,
+        # multi_hop_dist=5,
         walk_len_tr=50,
         walk_len_tt=100,
         node_emb_dim=512 * 9 + 1,
@@ -63,8 +64,8 @@ class RandomWalkConformer(pl.LightningModule):
             degree_emb_dim, hidden_dim, padding_idx=0)
         self.spatial_encoder_attn = nn.Embedding(
             win_size + 3, n_heads, padding_idx=0) # win_size + 2 unreachable
-        self.spatial_encoder_conv = nn.Embedding(
-            win_size + 3, 1, padding_idx=0)
+        # self.spatial_encoder_conv = nn.Embedding(
+        #     win_size + 3, 1, padding_idx=0)
         self.vn_encoder = nn.Embedding(1, hidden_dim)
         self.vn_pos_encoder = nn.Embedding(1, n_heads)
         
@@ -79,6 +80,7 @@ class RandomWalkConformer(pl.LightningModule):
         self.n_layers       = n_layers
         self.n_heads        = n_heads
         self.win_size       = win_size
+        # self.multi_hop_dist = multi_hop_dist
         self.walk_len       = walk_len_tr
         self.walk_len_tr    = walk_len_tr
         self.walk_len_tt    = walk_len_tt
@@ -116,7 +118,8 @@ class RandomWalkConformer(pl.LightningModule):
 
         # attention bias
         attn_bias = attn_bias.repeat(self.n_layers, 1, 1)
-        attn_bias[:, 1:, 1:][spatial_pos == self.win_size + 2] = float('-inf')
+        # attn_bias[:, 1:, 1:][spatial_pos >= self.multi_hop_dist] \
+        #     = float('-inf')
         attn_bias_ = attn_bias.clone()
         attn_bias_ = attn_bias_.unsqueeze(1).repeat(
             1, self.n_heads, 1, 1) # b, h, n + 1, n + 1
@@ -133,6 +136,8 @@ class RandomWalkConformer(pl.LightningModule):
         # x > 1 to x - 1
         spatial_pos_ = torch.where(
             spatial_pos_ > 1, spatial_pos_ - 1, spatial_pos_)
+        # spatial_pos_ = spatial_pos_.clamp(0, self.multi_hop_dist)
+        # edge_input = edge_input[:, :, :, :self.multi_hop_dist, :]
         # b, n, n, dis, h
         edge_input = self.edge_encoder_attn(edge_input).mean(-2)
         max_dist = edge_input.size(-2)
@@ -273,9 +278,10 @@ class RandomWalkConformer(pl.LightningModule):
         parser.add_argument("--end_lr",         type=float, default=1e-9)
         parser.add_argument("--warmup_steps",   type=int,   default=60000)
         parser.add_argument("--total_steps",    type=int,   default=1000000)
-        parser.add_argument("--weight_decay",   type=float, default=0.01)
+        parser.add_argument("--weight_decay",   type=float, default=0)
         parser.add_argument("--win_size",       type=int,   default=8)
         parser.add_argument("--kernel_size",    type=int,   default=9)
+        # parser.add_argument("--multi_hop_dist", type=int,   default=5)
         parser.add_argument("--walk_len_tr",    type=int,   default=50)
         parser.add_argument("--walk_len_tt",    type=int,   default=100)
         parser.add_argument('--val', action='store_true', default=False)

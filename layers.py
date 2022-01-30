@@ -92,7 +92,6 @@ class ConvModule(nn.Module):
         self.center_end = -(kernel_size - 1 - self.center_start)
 
         self.ln = nn.LayerNorm(hidden_dim)
-
         # node feature:             hidden_dim
         # edge feature (in/ out):   edge_dim * 2
         # identity encoding:        win_size

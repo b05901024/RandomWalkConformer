@@ -91,6 +91,8 @@ def genWalk(
                        walk_nodes_t[:, i + l], :l] \
                 = edge_feat_rp.gather(
                     1, walk_edges[:, i:i + l].unsqueeze(-1)) + 1
+            edge_input[batch_iter, walk_nodes_t[:, i], 
+                       walk_nodes_t[:, i + l], l:] = 0
 
     # l, w, b -> b, w, l
     id_enc = id_enc.permute(2, 1, 0)

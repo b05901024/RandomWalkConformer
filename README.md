@@ -6,5 +6,19 @@ python3 zinc.py --hidden_dim 44 --ffn_dim 44 --edge_dim 11 --n_heads 4 \
     --walk_len_tt 150 --data_root $YOUR_DATA_ROOT --batch_size 256 \
     --gradient_clip_val 5  --precision 16 --num_workers 16 \
     --default_root_dir $YOUR_ROOT_DIR --gpus 1 --accelerator ddp \
-    --peak_lr 2e-4
+    --peak_lr 2e-4 --weight_decay 0.01
+```
+## validation
+```
+python3 zinc.py --hidden_dim 44 --ffn_dim 44 --edge_dim 11 --n_heads 4 \
+    --walk_len_tt 150 --data_root $YOUR_DATA_ROOT --batch_size 256 \
+    --precision 16 --num_workers 16 --default_root_dir $YOUR_ROOT_DIR \
+    --gpus 1 --accelerator ddp --val
+```
+## test
+```
+python3 zinc.py --hidden_dim 44 --ffn_dim 44 --edge_dim 11 --n_heads 4 \
+    --walk_len_tt 150 --data_root $YOUR_DATA_ROOT --batch_size 256 \
+    --precision 16 --num_workers 16 --default_root_dir $YOUR_ROOT_DIR \
+    --gpus 1 --accelerator ddp --test
 ```

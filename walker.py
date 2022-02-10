@@ -4,8 +4,8 @@ import numpy as np
 MAXINT = np.iinfo(np.int64).max
 
 def genWalk(
-    length, win_size, edge_index, edge_feat, node_num, 
-    adj, adj_offset, out_degree, n_layers
+    length, max_hop, win_size, edge_index, edge_feat, node_num, adj,
+    adj_offset, out_degree, n_layers
 ):
     n_graphs = edge_index.size(0) * n_layers
     max_node_num = adj.size(1)
@@ -32,11 +32,11 @@ def genWalk(
     # s_enc = torch.zeros([length + 1, win_size, n_graphs], 
     #                     device=device, dtype=torch.long)
     # initial all nodes to be unreachable
-    spatial_pos = (win_size + 2) \
+    spatial_pos = (max_hop + 1) \
                 * torch.ones([n_graphs, max_node_num, max_node_num], 
                              dtype=torch.long, device=device)   
     edge_input = torch.zeros(
-        [n_graphs, max_node_num, max_node_num, win_size, edge_feat.size(-1)], 
+        [n_graphs, max_node_num, max_node_num, max_hop, edge_feat.size(-1)], 
         dtype=torch.long, device=device)    
     # generate all random numbers at once
     choices = torch.randint(0, MAXINT, [length + 1, n_graphs], device=device)
@@ -70,8 +70,8 @@ def genWalk(
     walk_edges = walk_edges.T
     
     # random walk spatial position
-    for i in range(win_size + 1):
-        d = win_size - i
+    for i in range(max_hop + 1):
+        d = max_hop - i
         for j in range(length - d + 1):
             spatial_pos[batch_iter, walk_nodes_t[:, j], walk_nodes_t[:, j + d]] \
                 = d + 1
@@ -85,7 +85,7 @@ def genWalk(
     #         batch_iter, walk_nodes[i + 1], walk_nodes[i + 1 - l:i + 1]]
     
     # random walk edge input
-    for l in range(win_size, 0, -1):
+    for l in range(max_hop, 0, -1):
         for i in range(length + 1 - l):
             edge_input[batch_iter, walk_nodes_t[:, i], 
                        walk_nodes_t[:, i + l], :l] \
@@ -93,6 +93,12 @@ def genWalk(
                     1, walk_edges[:, i:i + l].unsqueeze(-1)) + 1
             edge_input[batch_iter, walk_nodes_t[:, i], 
                        walk_nodes_t[:, i + l], l:] = 0
+            edge_input[batch_iter, walk_nodes_t[:, i + l], 
+                       walk_nodes_t[:, i], :l] \
+                = edge_feat_rp.gather(
+                    1, walk_edges[:, i:i + l].flip(1).unsqueeze(-1)) + 1
+            edge_input[batch_iter, walk_nodes_t[:, i + l], 
+                       walk_nodes_t[:, i], l:] = 0
 
     # l, w, b -> b, w, l
     id_enc = id_enc.permute(2, 1, 0)

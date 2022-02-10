@@ -8,15 +8,7 @@ from data.data_module import myDataModule
 class Solver:
     def __init__(self, args):        
         pl.seed_everything(args.seed)
-
         dm = myDataModule.from_argparse_args(args)
-        # (
-        #     args.batch_size,
-        #     args.num_workers,
-        #     tr_set=args.tr_set,
-        #     val_set=args.val_set,
-        #     tt_set=args.tt_set
-        # )
 
         if args.checkpoint == "":
             model = RandomWalkConformer(
@@ -37,9 +29,9 @@ class Solver:
                 metric=args.metric,
                 loss_fn=args.loss_fn,
                 num_class=args.num_class,
+                max_hop=args.max_hop,
                 win_size=args.win_size,
                 kernel_size=args.kernel_size,
-                # multi_hop_dist=args.multi_hop_dist,
                 walk_len_tr=args.walk_len_tr,
                 walk_len_tt=args.walk_len_tt,
                 node_emb_dim=args.node_emb_dim,
@@ -68,9 +60,9 @@ class Solver:
                 metric=args.metric,
                 loss_fn=args.loss_fn,
                 num_class=args.num_class,
+                max_hop=args.max_hop,
                 win_size=args.win_size,
                 kernel_size=args.kernel_size,
-                # multi_hop_dist=args.multi_hop_dist,
                 walk_len_tr=args.walk_len_tr,
                 walk_len_tt=args.walk_len_tt,
                 node_emb_dim=args.node_emb_dim,

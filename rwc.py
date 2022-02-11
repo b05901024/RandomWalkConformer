@@ -34,9 +34,9 @@ class RandomWalkConformer(pl.LightningModule):
         metric,
         loss_fn,
         num_class=1,
+        max_hop=5,
         win_size=8,
         kernel_size=9,
-        # multi_hop_dist=5,
         walk_len_tr=50,
         walk_len_tt=100,
         node_emb_dim=512 * 9 + 1,
@@ -63,7 +63,7 @@ class RandomWalkConformer(pl.LightningModule):
         self.out_degree_encoder = nn.Embedding(
             degree_emb_dim, hidden_dim, padding_idx=0)
         self.spatial_encoder_attn = nn.Embedding(
-            win_size + 3, n_heads, padding_idx=0) # win_size + 2 unreachable
+            max_hop + 2, n_heads, padding_idx=0) # max_hop + 1 unreachable
         # self.spatial_encoder_conv = nn.Embedding(
         #     win_size + 3, 1, padding_idx=0)
         self.vn_encoder = nn.Embedding(1, hidden_dim)
@@ -80,7 +80,7 @@ class RandomWalkConformer(pl.LightningModule):
         self.n_layers       = n_layers
         self.n_heads        = n_heads
         self.win_size       = win_size
-        # self.multi_hop_dist = multi_hop_dist
+        self.max_hop        = max_hop
         self.walk_len       = walk_len_tr
         self.walk_len_tr    = walk_len_tr
         self.walk_len_tt    = walk_len_tt
@@ -112,14 +112,15 @@ class RandomWalkConformer(pl.LightningModule):
         #         self.walk_len, self.win_size, edge_index, edge_attr, n_nodes,
         #         adj, adj_offset, out_degree, self.n_layers)
         walk_nodes, walk_edges, id_enc, con_enc, spatial_pos, edge_input = \
-            genWalk(self.walk_len, self.win_size, edge_index, edge_attr, 
-                    n_nodes, adj, adj_offset, out_degree, self.n_layers)
+            genWalk(self.walk_len, self.max_hop, self.win_size, edge_index,
+                    edge_attr, n_nodes, adj, adj_offset, out_degree, 
+                    self.n_layers)
         n_graphs, max_node_num = x.size()[:2]
 
         # attention bias
         attn_bias = attn_bias.repeat(self.n_layers, 1, 1)
-        # attn_bias[:, 1:, 1:][spatial_pos >= self.multi_hop_dist] \
-        #     = float('-inf')
+        attn_bias[:, 1:, 1:][spatial_pos == self.max_hop + 1] \
+            = float('-inf')
         attn_bias_ = attn_bias.clone()
         attn_bias_ = attn_bias_.unsqueeze(1).repeat(
             1, self.n_heads, 1, 1) # b, h, n + 1, n + 1
@@ -140,15 +141,15 @@ class RandomWalkConformer(pl.LightningModule):
         # edge_input = edge_input[:, :, :, :self.multi_hop_dist, :]
         # b, n, n, dis, h
         edge_input = self.edge_encoder_attn(edge_input).mean(-2)
-        max_dist = edge_input.size(-2)
+        # max_dist = edge_input.size(-2)
         edge_input_flat = edge_input.permute(3, 0, 1, 2, 4).reshape(
-            max_dist, -1, self.n_heads)
+            self.max_hop, -1, self.n_heads)
         edge_input_flat = torch.bmm(
             edge_input_flat, self.edge_dis_encoder.weight.reshape(
-                -1, self.n_heads, self.n_heads)[:max_dist, :, :])
+                -1, self.n_heads, self.n_heads)[:self.max_hop, :, :])
         edge_input = edge_input_flat.reshape(
-            max_dist, -1, max_node_num, max_node_num, self.n_heads).permute(
-                1, 2, 3, 0, 4)
+                self.max_hop, -1, max_node_num, max_node_num, self.n_heads
+            ).permute(1, 2, 3, 0, 4)
         # b, h, n, n
         edge_input = (edge_input.sum(-2) 
                    / spatial_pos_.unsqueeze(-1)).permute(0, 3, 1, 2)
@@ -279,9 +280,9 @@ class RandomWalkConformer(pl.LightningModule):
         parser.add_argument("--warmup_steps",   type=int,   default=60000)
         parser.add_argument("--total_steps",    type=int,   default=1000000)
         parser.add_argument("--weight_decay",   type=float, default=0)
+        parser.add_argument("--max_hop",        type=int,   default=5)
         parser.add_argument("--win_size",       type=int,   default=8)
         parser.add_argument("--kernel_size",    type=int,   default=9)
-        # parser.add_argument("--multi_hop_dist", type=int,   default=5)
         parser.add_argument("--walk_len_tr",    type=int,   default=50)
         parser.add_argument("--walk_len_tt",    type=int,   default=100)
         parser.add_argument('--val', action='store_true', default=False)

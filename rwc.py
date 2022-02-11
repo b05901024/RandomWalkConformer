@@ -44,6 +44,7 @@ class RandomWalkConformer(pl.LightningModule):
         edge_dis_emb_dim=128,
         degree_emb_dim=512,
         test_outfile=False,
+        directed=False,
     ):
         assert hidden_dim % n_heads == 0, \
                "hidden_dim must be divisible by n_heads"
@@ -93,6 +94,7 @@ class RandomWalkConformer(pl.LightningModule):
         self.metric         = metric
         self.loss_fn        = loss_fn
         self.test_outfile   = test_outfile
+        self.directed       = directed
 
         self.apply(lambda module: init_params(module, n_layers))
 
@@ -114,7 +116,7 @@ class RandomWalkConformer(pl.LightningModule):
         walk_nodes, walk_edges, id_enc, con_enc, spatial_pos, edge_input = \
             genWalk(self.walk_len, self.max_hop, self.win_size, edge_index,
                     edge_attr, n_nodes, adj, adj_offset, out_degree, 
-                    self.n_layers)
+                    self.n_layers, self.directed)
         n_graphs, max_node_num = x.size()[:2]
 
         # attention bias
@@ -285,6 +287,7 @@ class RandomWalkConformer(pl.LightningModule):
         parser.add_argument("--kernel_size",    type=int,   default=9)
         parser.add_argument("--walk_len_tr",    type=int,   default=50)
         parser.add_argument("--walk_len_tt",    type=int,   default=100)
+        parser.add_argument('--directed', action='store_true', default=False)
         parser.add_argument('--val', action='store_true', default=False)
         parser.add_argument('--test', action='store_true', default=False)  
         return parent_parser

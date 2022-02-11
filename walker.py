@@ -5,7 +5,7 @@ MAXINT = np.iinfo(np.int64).max
 
 def genWalk(
     length, max_hop, win_size, edge_index, edge_feat, node_num, adj,
-    adj_offset, out_degree, n_layers
+    adj_offset, out_degree, n_layers, directed=False
 ):
     n_graphs = edge_index.size(0) * n_layers
     max_node_num = adj.size(1)
@@ -75,8 +75,9 @@ def genWalk(
         for j in range(length - d + 1):
             spatial_pos[batch_iter, walk_nodes_t[:, j], walk_nodes_t[:, j + d]] \
                 = d + 1
-            spatial_pos[batch_iter, walk_nodes_t[:, j + d], walk_nodes_t[:, j]] \
-                = d + 1
+            if not directed:
+                spatial_pos[batch_iter, walk_nodes_t[:, j + d], walk_nodes_t[:, j]] \
+                    = d + 1
 
     # # spatial encoding for convolution module
     # for i in range(length):
@@ -93,12 +94,13 @@ def genWalk(
                     1, walk_edges[:, i:i + l].unsqueeze(-1)) + 1
             edge_input[batch_iter, walk_nodes_t[:, i], 
                        walk_nodes_t[:, i + l], l:] = 0
-            edge_input[batch_iter, walk_nodes_t[:, i + l], 
-                       walk_nodes_t[:, i], :l] \
-                = edge_feat_rp.gather(
-                    1, walk_edges[:, i:i + l].flip(1).unsqueeze(-1)) + 1
-            edge_input[batch_iter, walk_nodes_t[:, i + l], 
-                       walk_nodes_t[:, i], l:] = 0
+            if not directed:
+                edge_input[batch_iter, walk_nodes_t[:, i + l], 
+                        walk_nodes_t[:, i], :l] \
+                    = edge_feat_rp.gather(
+                        1, walk_edges[:, i:i + l].flip(1).unsqueeze(-1)) + 1
+                edge_input[batch_iter, walk_nodes_t[:, i + l], 
+                        walk_nodes_t[:, i], l:] = 0
 
     # l, w, b -> b, w, l
     id_enc = id_enc.permute(2, 1, 0)

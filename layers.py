@@ -94,11 +94,11 @@ class ConvModule(nn.Module):
         self.ln = nn.LayerNorm(hidden_dim)
         # node feature:             hidden_dim
         # edge feature (in/ out):   edge_dim * 2
-        # identity encoding:        win_size
-        # connectivity encoding:    win_size - 1
-        # # spatial encoding:         win_size
+        ## identity encoding:        win_size
+        ## connectivity encoding:    win_size - 1
+        # spatial encoding:         win_size
         self.pc1 = nn.Conv1d(
-                hidden_dim + 2 * edge_dim + 2 * win_size - 1,
+                hidden_dim + 2 * edge_dim + win_size,
                 hidden_dim * 2, 1)  # pointwise
         self.glu = GLU(1)
         self.dc = nn.Conv1d(

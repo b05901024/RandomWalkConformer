@@ -45,6 +45,7 @@ class RandomWalkConformer(pl.LightningModule):
         degree_emb_dim=512,
         test_outfile=False,
         directed=False,
+        fp_path="",
     ):
         assert hidden_dim % n_heads == 0, \
                "hidden_dim must be divisible by n_heads"
@@ -52,7 +53,7 @@ class RandomWalkConformer(pl.LightningModule):
         self.save_hyperparameters()
 
         self.node_encoder = nn.Embedding(
-            node_emb_dim, hidden_dim, padding_idx=0)
+                node_emb_dim, hidden_dim, padding_idx=0)
         self.edge_encoder_attn = nn.Embedding(
             edge_emb_dim, n_heads, padding_idx=0)
         self.edge_encoder_conv = nn.Embedding(
@@ -65,9 +66,10 @@ class RandomWalkConformer(pl.LightningModule):
             degree_emb_dim, hidden_dim, padding_idx=0)
         self.spatial_encoder_attn = nn.Embedding(
             max_hop + 2, n_heads, padding_idx=0) # max_hop + 1 unreachable
-        # self.spatial_encoder_conv = nn.Embedding(
-        #     win_size + 3, 1, padding_idx=0)
-        self.vn_encoder = nn.Embedding(1, hidden_dim)
+        self.spatial_encoder_conv = nn.Embedding(
+            win_size + 3, 1, padding_idx=0)
+        fp_dim = 0 if fp_path == "" else 2
+        self.vn_encoder = nn.Embedding(1, hidden_dim - fp_dim * n_heads)
         self.vn_pos_encoder = nn.Embedding(1, n_heads)
         
         self.layers = nn.ModuleList(
@@ -79,6 +81,7 @@ class RandomWalkConformer(pl.LightningModule):
         self.out = nn.Linear(hidden_dim, num_class)
 
         self.n_layers       = n_layers
+        self.hidden_dim     = hidden_dim
         self.n_heads        = n_heads
         self.win_size       = win_size
         self.max_hop        = max_hop
@@ -108,12 +111,13 @@ class RandomWalkConformer(pl.LightningModule):
         out_degree  = batched_data.out_degree
         adj_offset  = batched_data.adj_offset
         attn_bias   = batched_data.attn_bias
+        fp          = batched_data.fp
 
         # walk_nodes, walk_edges, id_enc, con_enc, s_enc, spatial_pos, \
         #     edge_input = genWalk(
         #         self.walk_len, self.win_size, edge_index, edge_attr, n_nodes,
         #         adj, adj_offset, out_degree, self.n_layers)
-        walk_nodes, walk_edges, id_enc, con_enc, spatial_pos, edge_input = \
+        walk_nodes, walk_edges, s_enc, spatial_pos, edge_input = \
             genWalk(self.walk_len, self.max_hop, self.win_size, edge_index,
                     edge_attr, n_nodes, adj, adj_offset, out_degree, 
                     self.n_layers, self.directed)
@@ -159,9 +163,9 @@ class RandomWalkConformer(pl.LightningModule):
         attn_bias_ = attn_bias_ + attn_bias.unsqueeze(1) # reset unreachable
 
         # convolution module encoding
-        # s_enc = self.spatial_encoder_conv(s_enc).squeeze(-1)
+        encodings = self.spatial_encoder_conv(s_enc).squeeze(-1)
         # encodings = torch.cat([id_enc, con_enc, s_enc], 1)
-        encodings = torch.cat([id_enc, con_enc], 1)
+        # encodings = torch.cat([id_enc, con_enc], 1)
         edge_feat = self.edge_encoder_conv(edge_attr).sum(-2)
 
         # node feature
@@ -170,6 +174,11 @@ class RandomWalkConformer(pl.LightningModule):
                   + self.in_degree_encoder(in_degree) \
                   + self.out_degree_encoder(out_degree)
         vn_feat = self.vn_encoder.weight.unsqueeze(0).repeat(n_graphs, 1, 1)
+        if fp != None:
+            vn_feat = vn_feat.view(n_graphs, 1, self.n_heads, -1)
+            fp = fp.view(n_graphs, 1, 1, 2).expand(-1, -1, self.n_heads, -1)
+            vn_feat = torch.cat([vn_feat, fp], -1).view(n_graphs, 1, self.hidden_dim)
+        
         node_feat = torch.cat([vn_feat, node_feat], 1) # vn at index 0
 
         for i, layer in enumerate(self.layers):

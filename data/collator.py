@@ -1,8 +1,9 @@
 import torch
+from functools import partial
 
 class Batch:
     def __init__(self, idx, n_nodes, x, y, edge_index, edge_attr, adj, 
-                 in_degree, out_degree, adj_offset, attn_bias):
+                 in_degree, out_degree, adj_offset, attn_bias, fp=None):
         self.idx        = idx
         self.n_nodes    = n_nodes
         self.x          = x
@@ -14,6 +15,7 @@ class Batch:
         self.out_degree = out_degree
         self.adj_offset = adj_offset
         self.attn_bias  = attn_bias
+        self.fp = fp
 
     def to(self, device):
         self.idx        = self.idx.to(device)
@@ -27,17 +29,28 @@ class Batch:
         self.out_degree = self.out_degree.to(device)
         self.adj_offset = self.adj_offset.to(device)
         self.attn_bias  = self.attn_bias.to(device)
+        if self.fp != None:
+            self.fp = self.fp.to(device)
         return self
     
     def __len__(self):
         return self.idx.size(0)
 
-def collate_fn(items):
-    items = [(item.idx, item.n_nodes, item.x, item.y, item.edge_index,
-              item.edge_attr, item.adj, item.in_degree, item.out_degree,
-              item.adj_offset, item.attn_bias) for item in items]
-    idxs, node_nums, xs, ys, edge_indices, edge_attrs, adjs, in_degrees, \
-        out_degrees, adj_offsets, attn_biases = zip(*items)
+def collate_fn(items, fp=None):
+    if fp == None:
+        items = [(item.idx, item.n_nodes, item.x, item.y, item.edge_index,
+                item.edge_attr, item.adj, item.in_degree, item.out_degree,
+                item.adj_offset, item.attn_bias) for item in items]
+        idxs, node_nums, xs, ys, edge_indices, edge_attrs, adjs, \
+            in_degrees, out_degrees, adj_offsets, attn_biases = zip(*items)
+    else:
+        items = [(item.idx, item.n_nodes, item.x, item.y, item.edge_index,
+                item.edge_attr, item.adj, item.in_degree, item.out_degree,
+                item.adj_offset, item.attn_bias, item.fp) for item in items]
+        idxs, node_nums, xs, ys, edge_indices, edge_attrs, adjs, \
+            in_degrees, out_degrees, adj_offsets, attn_biases, fps \
+            = zip(*items)
+        fp = torch.stack(fps).half()
     
     max_node_num = max(n for n in node_nums)
     max_edge_num = max(e.size(0) for e in edge_attrs)
@@ -66,7 +79,8 @@ def collate_fn(items):
         in_degree=in_degree, 
         out_degree=out_degree, 
         adj_offset=adj_offset, 
-        attn_bias=attn_bias
+        attn_bias=attn_bias,
+        fp=fp
     )
 
 def pad_1d(x, pad_len):

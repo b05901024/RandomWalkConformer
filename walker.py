@@ -25,12 +25,12 @@ def genWalk(
                              dtype=torch.long, device=device)
     walk_edges = torch.zeros([length, n_graphs],
                              dtype=torch.long, device=device)  
-    # id_enc = torch.zeros([length + 1, win_size, n_graphs], 
-    #                      device=device, dtype=torch.float16)
-    # con_enc = torch.zeros([length + 1, win_size, n_graphs], 
-    #                       device=device, dtype=torch.float16)
-    s_enc = torch.zeros([length + 1, win_size, n_graphs], 
-                        device=device, dtype=torch.long)
+    id_enc = torch.zeros([length + 1, win_size, n_graphs], 
+                         device=device, dtype=torch.float16)
+    con_enc = torch.zeros([length + 1, win_size, n_graphs], 
+                          device=device, dtype=torch.float16)
+    # s_enc = torch.zeros([length + 1, win_size, n_graphs], 
+    #                     device=device, dtype=torch.long)
     # initial all nodes to be unreachable
     spatial_pos = (max_hop + 1) \
                 * torch.ones([n_graphs, max_node_num, max_node_num], 
@@ -50,8 +50,8 @@ def genWalk(
     walk_nodes[1], walk_edges[0], _, _ = get_next_node(
         walk_nodes[0].unsqueeze(-1), out_degree_rp, 
         adj_offset_rp, choices[1].unsqueeze(-1), edge_index_rp)
-    # update_encoding(0, walk_nodes, id_enc, con_enc, 
-    #                 win_size, adj_rp, batch_iter)
+    update_encoding(0, walk_nodes, id_enc, con_enc, 
+                    win_size, adj_rp, batch_iter)
     for i in range(1, length):
         next_node, chosen_edge, node_degree, node_adj_offset = \
             get_next_node(walk_nodes[i].unsqueeze(-1), out_degree_rp, 
@@ -64,8 +64,8 @@ def genWalk(
         walk_nodes[i + 1] = torch.gather(
             edge_index_rp[:, 1], 1, chosen_edge.unsqueeze(-1)).squeeze(-1)
         walk_edges[i] = chosen_edge
-        # update_encoding(i, walk_nodes, id_enc, con_enc, 
-        #                 win_size, adj_rp, batch_iter)
+        update_encoding(i, walk_nodes, id_enc, con_enc, 
+                        win_size, adj_rp, batch_iter)
     walk_nodes_t = walk_nodes.T
     walk_edges = walk_edges.T
     
@@ -79,11 +79,11 @@ def genWalk(
                 spatial_pos[batch_iter, walk_nodes_t[:, j + d], walk_nodes_t[:, j]] \
                     = d + 1
 
-    # spatial encoding for convolution module
-    for i in range(length):
-        l = min(i + 1, win_size)
-        s_enc[i + 1, win_size - l:] = spatial_pos[
-            batch_iter, walk_nodes[i + 1], walk_nodes[i + 1 - l:i + 1]]
+    # # spatial encoding for convolution module
+    # for i in range(length):
+    #     l = min(i + 1, win_size)
+    #     s_enc[i + 1, win_size - l:] = spatial_pos[
+    #         batch_iter, walk_nodes[i + 1], walk_nodes[i + 1 - l:i + 1]]
     
     # random walk edge input
     for l in range(max_hop, 0, -1):
@@ -103,12 +103,11 @@ def genWalk(
                         walk_nodes_t[:, i], l:] = 0
 
     # l, w, b -> b, w, l
-    # id_enc = id_enc.permute(2, 1, 0)
-    # con_enc = con_enc[:, :-1].permute(2, 1, 0) # we don't need the last node
-    s_enc = s_enc.permute(2, 1, 0)
-    # return walk_nodes_t, walk_edges, id_enc, con_enc, \
-    #        s_enc, spatial_pos, edge_input
-    return walk_nodes_t, walk_edges, s_enc, spatial_pos, edge_input
+    id_enc = id_enc.permute(2, 1, 0)
+    con_enc = con_enc[:, :-1].permute(2, 1, 0) # we don't need the last node
+    # s_enc = s_enc.permute(2, 1, 0)
+    return walk_nodes_t, walk_edges, id_enc, con_enc, spatial_pos, edge_input
+    # return walk_nodes_t, walk_edges, s_enc, spatial_pos, edge_input
 
 def repeat(x, n_layers):
     return torch.cat([x for i in range(n_layers)])

@@ -68,7 +68,9 @@ class RandomWalkConformer(pl.LightningModule):
         # self.spatial_encoder_conv = nn.Embedding(
         #     win_size + 3, 1, padding_idx=0)
         self.vn_encoder = nn.Embedding(1, hidden_dim)
-        self.vn_pos_encoder = nn.Embedding(1, n_heads)
+        self.vn_pos_encoder_out = nn.Embedding(1, n_heads)
+        if directed:
+            self.vn_pos_encoder_in = nn.Embedding(1, n_heads)
         
         self.layers = nn.ModuleList(
             [ConformerBlock(hidden_dim, ffn_dim, edge_dim, n_heads, win_size,
@@ -131,9 +133,12 @@ class RandomWalkConformer(pl.LightningModule):
         attn_bias_[:, :, 1:, 1:] = attn_bias_[:, :, 1:, 1:] \
             + spatial_pos_bias
         # virtual node
-        d = self.vn_pos_encoder.weight.view(1, self.n_heads, 1)
-        attn_bias_[:, :, 1:, 0] = attn_bias_[:, :, 1:, 0] + d
-        attn_bias_[:, :, 0, :] = attn_bias_[:, :, 0, :] + d
+        theta = self.vn_pos_encoder_out.weight.view(1, self.n_heads, 1)
+        attn_bias_[:, :, 0, :] = attn_bias_[:, :, 0, :] + theta
+        if self.directed:
+            theta = self.vn_pos_encoder_in.weight.view(1, self.n_heads, 1)
+        attn_bias_[:, :, 1:, 0] = attn_bias_[:, :, 1:, 0] + theta
+        
         # edge
         spatial_pos_ = spatial_pos.clone().half()
         # x > 1 to x - 1

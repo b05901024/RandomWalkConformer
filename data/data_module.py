@@ -1,3 +1,4 @@
+from functools import partial
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 from .collator import collate_fn
@@ -8,9 +9,11 @@ class myDataModule(LightningDataModule):
         batch_size: int = 1024,
         num_workers: int = 0,
         seed: int = 42,
+        fp_path: str = "",
         tr_set=None,
         val_set=None,
         tt_set=None,
+        fp=None,
         *args,
         **kwargs,
     ):
@@ -20,6 +23,7 @@ class myDataModule(LightningDataModule):
         self.tr_set         = tr_set
         self.val_set        = val_set
         self.tt_set         = tt_set
+        self.fp             = fp
     
     def train_dataloader(self):
         return DataLoader(
@@ -28,7 +32,7 @@ class myDataModule(LightningDataModule):
                 shuffle=True,
                 num_workers=self.num_workers,
                 pin_memory=True,
-                collate_fn=collate_fn
+                collate_fn=partial(collate_fn, fp=self.fp)
             )
     
     def val_dataloader(self):
@@ -38,7 +42,7 @@ class myDataModule(LightningDataModule):
                 shuffle=False,
                 num_workers=self.num_workers,
                 pin_memory=False,
-                collate_fn=collate_fn
+                collate_fn=partial(collate_fn, fp=self.fp)
             )
     
     def test_dataloader(self):
@@ -48,5 +52,5 @@ class myDataModule(LightningDataModule):
                 shuffle=False,
                 num_workers=self.num_workers,
                 pin_memory=False,
-                collate_fn=collate_fn
+                collate_fn=partial(collate_fn, fp=self.fp)
             )

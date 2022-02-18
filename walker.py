@@ -106,9 +106,8 @@ def genWalk(
     id_enc = id_enc.permute(2, 1, 0)
     con_enc = con_enc[:, :-1].permute(2, 1, 0) # we don't need the last node
     # s_enc = s_enc.permute(2, 1, 0)
-    # return walk_nodes_t, walk_edges, id_enc, con_enc, \
-    #        s_enc, spatial_pos, edge_input
     return walk_nodes_t, walk_edges, id_enc, con_enc, spatial_pos, edge_input
+    # return walk_nodes_t, walk_edges, s_enc, spatial_pos, edge_input
 
 def repeat(x, n_layers):
     return torch.cat([x for i in range(n_layers)])

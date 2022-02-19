@@ -136,9 +136,12 @@ class RandomWalkConformer(pl.LightningModule):
         attn_bias_[:, :, 1:, 1:] = attn_bias_[:, :, 1:, 1:] \
             + spatial_pos_bias
         # virtual node
-        d = self.vn_pos_encoder.weight.view(1, self.n_heads, 1)
-        attn_bias_[:, :, 1:, 0] = attn_bias_[:, :, 1:, 0] + d
-        attn_bias_[:, :, 0, :] = attn_bias_[:, :, 0, :] + d
+        theta = self.vn_pos_encoder_out.weight.view(1, self.n_heads, 1)
+        attn_bias_[:, :, 0, :] = attn_bias_[:, :, 0, :] + theta
+        if self.directed:
+            theta = self.vn_pos_encoder_in.weight.view(1, self.n_heads, 1)
+        attn_bias_[:, :, 1:, 0] = attn_bias_[:, :, 1:, 0] + theta
+        
         # edge
         spatial_pos_ = spatial_pos.clone().half()
         # x > 1 to x - 1

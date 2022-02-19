@@ -68,8 +68,7 @@ class RandomWalkConformer(pl.LightningModule):
             max_hop + 2, n_heads, padding_idx=0) # max_hop + 1 unreachable
         self.spatial_encoder_conv = nn.Embedding(
             win_size + 3, 1, padding_idx=0)
-        fp_dim = 0 if fp_path == "" else 2
-        self.vn_encoder = nn.Embedding(1, hidden_dim - fp_dim * n_heads)
+        self.vn_encoder = nn.Embedding(1, hidden_dim)
         self.vn_pos_encoder = nn.Embedding(1, n_heads)
         
         self.layers = nn.ModuleList(
@@ -79,6 +78,8 @@ class RandomWalkConformer(pl.LightningModule):
         )
         self.ln = nn.LayerNorm(hidden_dim)
         self.out = nn.Linear(hidden_dim, num_class)
+        if fp_path != "":
+            self.fp_weight = nn.Parameter(torch.randn([3, 1]))
 
         self.n_layers       = n_layers
         self.hidden_dim     = hidden_dim
@@ -117,10 +118,10 @@ class RandomWalkConformer(pl.LightningModule):
         #     edge_input = genWalk(
         #         self.walk_len, self.win_size, edge_index, edge_attr, n_nodes,
         #         adj, adj_offset, out_degree, self.n_layers)
-        walk_nodes, walk_edges, s_enc, spatial_pos, edge_input = \
-            genWalk(self.walk_len, self.max_hop, self.win_size, edge_index,
-                    edge_attr, n_nodes, adj, adj_offset, out_degree, 
-                    self.n_layers, self.directed)
+        walk_nodes, walk_edges, id_enc, con_enc, s_enc, spatial_pos, \
+            edge_input = genWalk(self.walk_len, self.max_hop, self.win_size, 
+                    edge_index, edge_attr, n_nodes, adj, adj_offset, 
+                    out_degree, self.n_layers, self.directed)
         n_graphs, max_node_num = x.size()[:2]
 
         # attention bias
@@ -143,11 +144,8 @@ class RandomWalkConformer(pl.LightningModule):
         # x > 1 to x - 1
         spatial_pos_ = torch.where(
             spatial_pos_ > 1, spatial_pos_ - 1, spatial_pos_)
-        # spatial_pos_ = spatial_pos_.clamp(0, self.multi_hop_dist)
-        # edge_input = edge_input[:, :, :, :self.multi_hop_dist, :]
         # b, n, n, dis, h
         edge_input = self.edge_encoder_attn(edge_input).mean(-2)
-        # max_dist = edge_input.size(-2)
         edge_input_flat = edge_input.permute(3, 0, 1, 2, 4).reshape(
             self.max_hop, -1, self.n_heads)
         edge_input_flat = torch.bmm(
@@ -164,7 +162,7 @@ class RandomWalkConformer(pl.LightningModule):
 
         # convolution module encoding
         encodings = self.spatial_encoder_conv(s_enc).squeeze(-1)
-        # encodings = torch.cat([id_enc, con_enc, s_enc], 1)
+        encodings = torch.cat([id_enc, con_enc, s_enc], 1)
         # encodings = torch.cat([id_enc, con_enc], 1)
         edge_feat = self.edge_encoder_conv(edge_attr).sum(-2)
 
@@ -174,11 +172,6 @@ class RandomWalkConformer(pl.LightningModule):
                   + self.in_degree_encoder(in_degree) \
                   + self.out_degree_encoder(out_degree)
         vn_feat = self.vn_encoder.weight.unsqueeze(0).repeat(n_graphs, 1, 1)
-        if fp != None:
-            vn_feat = vn_feat.view(n_graphs, 1, self.n_heads, -1)
-            fp = fp.view(n_graphs, 1, 1, 2).expand(-1, -1, self.n_heads, -1)
-            vn_feat = torch.cat([vn_feat, fp], -1).view(n_graphs, 1, self.hidden_dim)
-        
         node_feat = torch.cat([vn_feat, node_feat], 1) # vn at index 0
 
         for i, layer in enumerate(self.layers):
@@ -190,6 +183,9 @@ class RandomWalkConformer(pl.LightningModule):
         out = self.ln(node_feat)
         # only use virtual node to represent the graph
         out = self.out(out[:, 0, :])
+        if fp != None:
+            out = torch.cat([out, fp], 1)
+            out = torch.mm(out, self.fp_weight)
         return out
         
     def training_step(self, batched_data, batch_idx):
@@ -214,8 +210,8 @@ class RandomWalkConformer(pl.LightningModule):
         self.walk_len = self.walk_len_tt
     
     def validation_epoch_end(self, outputs):
-        pred = torch.cat([output["pred"] for output in outputs])
-        gt = torch.cat([output["gt"] for output in outputs])
+        pred = torch.cat([output["pred"] for output in outputs]).float()
+        gt = torch.cat([output["gt"] for output in outputs]).float()
         if self.metric == "mae":
             pred = pred.view(-1)
             gt = gt.view(-1)
@@ -238,8 +234,8 @@ class RandomWalkConformer(pl.LightningModule):
         self.walk_len = self.walk_len_tt
 
     def test_epoch_end(self, outputs):
-        pred = torch.cat([output["pred"] for output in outputs])
-        gt = torch.cat([output["gt"] for output in outputs])
+        pred = torch.cat([output["pred"] for output in outputs]).float()
+        gt = torch.cat([output["gt"] for output in outputs]).float()
         if self.metric == "mae":
             pred = pred.view(-1)
             gt = gt.view(-1)

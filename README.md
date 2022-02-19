@@ -72,7 +72,7 @@ python3 molhiv.py --hidden_dim 256 --ffn_dim 256 --edge_dim 64 --n_heads 4 \
 ```
 ## validation
 ```
-python3 molhiv.py --hidden_dim 256 --ffn_dim 256 --edge_dim 64 --n_heads 4 \
+python3 molhiv.py --hidden_dim 256 --ffn_dim 256 --edge_dim 64 --n_heads 8 \
     --walk_len_tt 100 --data_root $YOUR_DATA_ROOT --batch_size 8 \
     --precision 16 --num_workers 16 \
     --checkpoint $YOUR_ROOT_DIR/$YOUR_CHECKPOINT --gpus 1 --accelerator ddp \
@@ -80,7 +80,7 @@ python3 molhiv.py --hidden_dim 256 --ffn_dim 256 --edge_dim 64 --n_heads 4 \
 ```
 ## test
 ```
-python3 molhiv.py --hidden_dim 256 --ffn_dim 256 --edge_dim 64 --n_heads 4 \
+python3 molhiv.py --hidden_dim 256 --ffn_dim 256 --edge_dim 64 --n_heads 8 \
     --walk_len_tt 100 --data_root $YOUR_DATA_ROOT --batch_size 8 \
     --precision 16 --num_workers 16 \
     --checkpoint $YOUR_ROOT_DIR/$YOUR_CHECKPOINT --gpus 1 --accelerator ddp \

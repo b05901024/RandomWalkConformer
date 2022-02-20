@@ -287,7 +287,7 @@ class RandomWalkConformer(pl.LightningModule):
         parser.add_argument("--ffn_dropout",    type=float, default=0.1)
         parser.add_argument("--attn_dropout",   type=float, default=0.1)
         parser.add_argument("--conv_dropout",   type=float, default=0.1)
-        parser.add_argument("--peak_lr",        type=float, default=2e-4)
+        parser.add_argument("--peak_lr",        type=float, default=1e-3)
         parser.add_argument("--end_lr",         type=float, default=1e-9)
         parser.add_argument("--warmup_steps",   type=int,   default=60000)
         parser.add_argument("--total_steps",    type=int,   default=1000000)

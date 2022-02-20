@@ -10,6 +10,7 @@ class myDataModule(LightningDataModule):
         num_workers: int = 0,
         seed: int = 42,
         fp_path: str = "",
+        drop_last: bool = False,
         tr_set=None,
         val_set=None,
         tt_set=None,
@@ -20,6 +21,7 @@ class myDataModule(LightningDataModule):
         super().__init__(*args, **kwargs)
         self.batch_size     = batch_size
         self.num_workers    = num_workers
+        self.drop_last      = drop_last
         self.tr_set         = tr_set
         self.val_set        = val_set
         self.tt_set         = tt_set
@@ -32,6 +34,7 @@ class myDataModule(LightningDataModule):
                 shuffle=True,
                 num_workers=self.num_workers,
                 pin_memory=True,
+                drop_last=self.drop_last,
                 collate_fn=partial(collate_fn, fp=self.fp)
             )
     
@@ -42,6 +45,7 @@ class myDataModule(LightningDataModule):
                 shuffle=False,
                 num_workers=self.num_workers,
                 pin_memory=False,
+                drop_last=self.drop_last,
                 collate_fn=partial(collate_fn, fp=self.fp)
             )
     
@@ -52,5 +56,6 @@ class myDataModule(LightningDataModule):
                 shuffle=False,
                 num_workers=self.num_workers,
                 pin_memory=False,
+                drop_last=self.drop_last,
                 collate_fn=partial(collate_fn, fp=self.fp)
             )

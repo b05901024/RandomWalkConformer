@@ -5,10 +5,6 @@ from .preprocess import preprocess_item
 
 # obgb
 class myGraphPropPredDataset(PygGraphPropPredDataset):
-    def __init__(self, name, root='dataset', fp=None):
-        super().__init__(name, root)
-        self.fp = fp  
-
     def download(self):
         super(myGraphPropPredDataset, self).download()
 
@@ -19,8 +15,6 @@ class myGraphPropPredDataset(PygGraphPropPredDataset):
         if isinstance(idx, int):
             item = self.get(self.indices()[idx])
             item.idx = idx
-            if self.fp != None:
-                item.fp = self.fp[idx]
             return preprocess_item(item)
         else:
             return self.index_select(idx)

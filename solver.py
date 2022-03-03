@@ -40,7 +40,6 @@ class Solver:
                 degree_emb_dim=args.degree_emb_dim,
                 test_outfile=args.test_outfile,
                 directed=args.directed,
-                fp_path=args.fp_path,
             )
         else:
             model = RandomWalkConformer.load_from_checkpoint(
@@ -73,7 +72,6 @@ class Solver:
                 degree_emb_dim=args.degree_emb_dim,
                 test_outfile=args.test_outfile,
                 directed=args.directed,
-                fp_path=args.fp_path,
             )
         print("total params:", sum(p.numel() for p in model.parameters()))
 

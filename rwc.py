@@ -45,7 +45,6 @@ class RandomWalkConformer(pl.LightningModule):
         degree_emb_dim=512,
         test_outfile=False,
         directed=False,
-        fp_path="",
     ):
         assert hidden_dim % n_heads == 0, \
                "hidden_dim must be divisible by n_heads"
@@ -80,9 +79,7 @@ class RandomWalkConformer(pl.LightningModule):
         )
         self.ln = nn.LayerNorm(hidden_dim)
         self.out = nn.Linear(hidden_dim, num_class)
-        if fp_path != "":
-            self.fp_weight = nn.Parameter(torch.randn([3, 1]))
-
+        
         self.n_layers       = n_layers
         self.hidden_dim     = hidden_dim
         self.n_heads        = n_heads
@@ -114,7 +111,6 @@ class RandomWalkConformer(pl.LightningModule):
         out_degree  = batched_data.out_degree
         adj_offset  = batched_data.adj_offset
         attn_bias   = batched_data.attn_bias
-        fp          = batched_data.fp
 
         # walk_nodes, walk_edges, id_enc, con_enc, s_enc, spatial_pos, \
         #     edge_input = genWalk(
@@ -188,9 +184,6 @@ class RandomWalkConformer(pl.LightningModule):
         out = self.ln(node_feat)
         # only use virtual node to represent the graph
         out = self.out(out[:, 0, :])
-        if fp != None:
-            out = torch.cat([out, fp], 1)
-            out = torch.mm(out, self.fp_weight)
         return out
         
     def training_step(self, batched_data, batch_idx):

@@ -70,20 +70,19 @@ def genWalk(
     walk_edges = walk_edges.T
     
     # random walk spatial position
-    for i in range(max_hop + 1):
-        d = max_hop - i
-        for j in range(length - d + 1):
-            spatial_pos[batch_iter, walk_nodes_t[:, j], walk_nodes_t[:, j + d]] \
+    for d in range(max_hop, -1, -1):
+        for i in range(length - d + 1):
+            spatial_pos[batch_iter, walk_nodes_t[:, i], walk_nodes_t[:, i + d]] \
                 = d + 1
             if not directed:
-                spatial_pos[batch_iter, walk_nodes_t[:, j + d], walk_nodes_t[:, j]] \
+                spatial_pos[batch_iter, walk_nodes_t[:, i + d], walk_nodes_t[:, i]] \
                     = d + 1
 
-    # # spatial encoding for convolution module
-    # for i in range(length):
-    #     l = min(i + 1, win_size)
-    #     s_enc[i + 1, win_size - l:] = spatial_pos[
-    #         batch_iter, walk_nodes[i + 1], walk_nodes[i + 1 - l:i + 1]]
+    # spatial encoding for convolution module
+    for i in range(length):
+        l = min(i + 1, win_size)
+        s_enc[i + 1, win_size - l:] = spatial_pos[
+            batch_iter, walk_nodes[i + 1], walk_nodes[i + 1 - l:i + 1]]
     
     # random walk edge input
     for l in range(max_hop, 0, -1):

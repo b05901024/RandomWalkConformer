@@ -66,7 +66,7 @@ class RandomWalkConformer(pl.LightningModule):
         self.spatial_encoder_attn = nn.Embedding(
             max_hop + 2, n_heads, padding_idx=0) # max_hop + 1 unreachable
         self.spatial_encoder_conv = nn.Embedding(
-            win_size + 3, 1, padding_idx=0)
+            max_hop + 2, 1, padding_idx=0)
         self.vn_encoder = nn.Embedding(1, hidden_dim)
         self.vn_pos_encoder_out = nn.Embedding(1, n_heads)
         if directed:

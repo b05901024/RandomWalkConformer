@@ -213,14 +213,21 @@ class RandomWalkConformer(pl.LightningModule):
         if self.metric == "mae":
             pred = pred.view(-1)
             gt = gt.view(-1)
-        self.log(
-            "val_" + self.metric, 
-            self.evaluator.eval({
-                "y_pred": pred, 
-                "y_true": gt
-            })[self.metric], 
-            sync_dist=True
-        )
+        try:
+            self.log(
+                "val_" + self.metric, 
+                self.evaluator.eval({
+                    "y_pred": pred, 
+                    "y_true": gt
+                })[self.metric], 
+                sync_dist=True
+            )
+        except:
+            self.log(
+                "val_" + self.metric, 
+                float("NaN"), 
+                sync_dist=True
+            )
     
     def test_step(self, batched_data, batch_idx):
         pred = self(batched_data)

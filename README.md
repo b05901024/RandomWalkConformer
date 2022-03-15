@@ -1,3 +1,15 @@
+# Install
+```
+conda create --name rwc python=3.8
+conda activate rwc
+pip install torch==1.10.0+cu113 torchvision==0.11.1+cu113 torchaudio===0.10.0+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
+pip install pytorch-lightning==1.5
+pip install torch-scatter torch-sparse torch-cluster torch-spline-conv torch-geometric -f https://data.pyg.org/whl/torch-1.10.0+cu113.html
+pip install tensorboard
+pip install ogb
+pip install rdkit-pypi
+```
+
 # ZINC
 ## train
 ```

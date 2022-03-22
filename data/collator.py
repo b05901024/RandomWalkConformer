@@ -33,9 +33,9 @@ class Batch:
     def __len__(self):
         return self.idx.size(0)
 
-def collate_fn(items):
+def collate_fn(items, max_node):
     items = [item for item in items if item is not None and \
-        item.x.size(0) <= 128] # prevent OOM
+        item.x.size(0) <= max_node] # prevent OOM
     items = [(item.idx, item.n_nodes, item.x, item.y, item.edge_index,
             item.edge_attr, item.adj, item.in_degree, item.out_degree,
             item.adj_offset, item.attn_bias) for item in items]

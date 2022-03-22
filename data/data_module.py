@@ -1,6 +1,7 @@
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 from .collator import collate_fn
+from functools import partial
 
 class myDataModule(LightningDataModule):
     def __init__(
@@ -8,7 +9,7 @@ class myDataModule(LightningDataModule):
         batch_size: int = 1024,
         num_workers: int = 0,
         seed: int = 42,
-        drop_last: bool = False,
+        max_node: int = 128,
         tr_set=None,
         val_set=None,
         tt_set=None,
@@ -18,7 +19,7 @@ class myDataModule(LightningDataModule):
         super().__init__(*args, **kwargs)
         self.batch_size     = batch_size
         self.num_workers    = num_workers
-        self.drop_last      = drop_last
+        self.max_node       = max_node
         self.tr_set         = tr_set
         self.val_set        = val_set
         self.tt_set         = tt_set
@@ -30,8 +31,7 @@ class myDataModule(LightningDataModule):
                 shuffle=True,
                 num_workers=self.num_workers,
                 pin_memory=True,
-                drop_last=self.drop_last,
-                collate_fn=collate_fn
+                collate_fn=partial(collate_fn, max_node=self.max_node),
             )
     
     def val_dataloader(self):
@@ -41,8 +41,7 @@ class myDataModule(LightningDataModule):
                 shuffle=False,
                 num_workers=self.num_workers,
                 pin_memory=False,
-                drop_last=self.drop_last,
-                collate_fn=collate_fn
+                collate_fn=partial(collate_fn, max_node=self.max_node),
             )
     
     def test_dataloader(self):
@@ -52,6 +51,5 @@ class myDataModule(LightningDataModule):
                 shuffle=False,
                 num_workers=self.num_workers,
                 pin_memory=False,
-                drop_last=self.drop_last,
-                collate_fn=collate_fn
+                collate_fn=partial(collate_fn, max_node=self.max_node),
             )

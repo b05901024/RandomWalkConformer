@@ -1,17 +1,24 @@
 import torch
-from torch_geometric.utils import sort_edge_index
+import torch_geometric
+from torch_geometric.utils import sort_edge_index, to_undirected
 
-def preprocess_item(item):
+def preprocess_item(item, discrete=True, force_undirected=False):
     n_nodes = item.x.size(0)
 
-    x = single_emb(item.x)
-
+    if force_undirected:
+        item.edge_index, item.edge_attr = to_undirected(
+            item.edge_index, item.edge_attr, reduce="mean"
+        )
     # must sort by source
     edge_index, edge_attr = sort_edge_index(
-        item.edge_index, item.edge_attr, n_nodes) 
+        item.edge_index, item.edge_attr, n_nodes)
     if len(edge_attr.size()) == 1:
         edge_attr = edge_attr[:, None]
-    edge_attr = single_emb(edge_attr)
+    if discrete:
+        edge_attr = single_emb(edge_attr)
+        x = single_emb(item.x)
+    else:
+        x = item.x
 
     adj = torch.zeros([n_nodes, n_nodes], dtype=torch.bool)
     adj[edge_index[0], edge_index[1]] = True

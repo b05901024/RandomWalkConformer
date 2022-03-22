@@ -37,7 +37,7 @@ def genWalk(
                              dtype=torch.long, device=device)   
     edge_input = torch.zeros(
         [n_graphs, max_node_num, max_node_num, max_hop, edge_feat.size(-1)], 
-        dtype=torch.long, device=device)    
+        dtype=edge_feat.dtype, device=device)    
     # generate all random numbers at once
     choices = torch.randint(0, MAXINT, [length + 1, n_graphs], device=device)
     

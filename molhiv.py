@@ -3,8 +3,6 @@ import ogb
 from data.ogb import myGraphPropPredDataset
 from solver import Solver
 from parser import parse_args
-import torch
-import numpy as np
 
 args = parse_args()
 args.num_class= 1
@@ -22,5 +20,6 @@ args.edge_emb_dim = 512 * 3 + 1
 args.edge_dis_emb_dim = 128
 args.degree_emb_dim = 512
 args.test_outfile = False
+args.feat_emb = True
 
 solver = Solver(args)

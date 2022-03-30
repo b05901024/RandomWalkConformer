@@ -178,7 +178,7 @@ class RandomWalkConformer(pl.LightningModule):
         attn_bias_ = attn_bias_ + attn_bias.unsqueeze(1) # reset unreachable
 
         # convolution module encoding
-        encodings = self.spatial_encoder_conv(s_enc).squeeze(-1)
+        s_enc = self.spatial_encoder_conv(s_enc).squeeze(-1)
         encodings = torch.cat([id_enc, con_enc, s_enc], 1)
         # encodings = torch.cat([id_enc, con_enc], 1)
 
@@ -264,6 +264,9 @@ class RandomWalkConformer(pl.LightningModule):
         if self.metric == "mae":
             pred = pred.view(-1)
             gt = gt.view(-1)
+        elif self.metric == "acc":
+            pred = pred.argmax(-1).unsqueeze(-1)
+            gt = gt.unsqueeze(-1)
         if self.test_outfile:
             pred = pred.cpu().numpy()
             idx = torch.cat([output["idx"] for output in outputs])

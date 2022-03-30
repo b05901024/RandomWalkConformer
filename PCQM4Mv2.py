@@ -22,5 +22,6 @@ args.edge_emb_dim = 512 * 3 + 1
 args.edge_dis_emb_dim = 128
 args.degree_emb_dim = 512
 args.test_outfile = True
+args.feat_emb = True
 
 solver = Solver(args)

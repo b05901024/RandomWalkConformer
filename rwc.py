@@ -119,14 +119,10 @@ class RandomWalkConformer(pl.LightningModule):
         adj_offset  = batched_data.adj_offset
         attn_bias   = batched_data.attn_bias
 
-        # walk_nodes, walk_edges, id_enc, con_enc, s_enc, spatial_pos, \
-        #     edge_input = genWalk(
-        #         self.walk_len, self.win_size, edge_index, edge_attr, n_nodes,
-        #         adj, adj_offset, out_degree, self.n_layers)
-        walk_nodes, walk_edges, id_enc, con_enc, s_enc, spatial_pos, \
-            edge_input = genWalk(self.walk_len, self.max_hop, self.win_size, 
-                    edge_index, edge_attr, n_nodes, adj, adj_offset, 
-                    out_degree, self.n_layers, self.directed)
+        walk_nodes, walk_edges, s_enc, spatial_pos, edge_input = genWalk(
+            self.walk_len, self.max_hop, self.win_size, edge_index, 
+            edge_attr, n_nodes, adj, adj_offset, out_degree, self.n_layers, 
+            self.directed)
         n_graphs, max_node_num = x.size()[:2]
 
         # embedding node/ edge features
@@ -179,8 +175,6 @@ class RandomWalkConformer(pl.LightningModule):
 
         # convolution module encoding
         s_enc = self.spatial_encoder_conv(s_enc).squeeze(-1)
-        encodings = torch.cat([id_enc, con_enc, s_enc], 1)
-        # encodings = torch.cat([id_enc, con_enc], 1)
 
         # node feature
         # b, n, d
@@ -195,7 +189,7 @@ class RandomWalkConformer(pl.LightningModule):
                 node_feat, attn_bias_[i * n_graphs:(i + 1) * n_graphs], 
                 edge_feat, walk_nodes[i * n_graphs:(i + 1) * n_graphs], 
                 walk_edges[i * n_graphs:(i + 1) * n_graphs], 
-                encodings[i * n_graphs:(i + 1) * n_graphs])
+                s_enc[i * n_graphs:(i + 1) * n_graphs])
         out = self.ln(node_feat)
         # only use virtual node to represent the graph
         out = self.out(out[:, 0, :])

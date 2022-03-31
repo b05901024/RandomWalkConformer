@@ -200,6 +200,8 @@ class RandomWalkConformer(pl.LightningModule):
         if self.metric != "acc":
             pred = pred.view(-1)
         gt = batched_data.y.view(-1)
+        if self.metric == "rocauc":
+            gt = gt.float()
         mask = ~torch.isnan(gt)
         loss = self.loss_fn(pred[mask], gt[mask])
         self.log("train_loss", loss, sync_dist=True)

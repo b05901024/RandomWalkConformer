@@ -108,14 +108,3 @@ def get_next_node(cur_node, out_degree, adj_offset, choice, edge_index):
     next_node = torch.gather(edge_index[:, 1], 1, chosen_edge)
     return next_node.squeeze(-1), chosen_edge.squeeze(-1), \
            node_degree.squeeze(-1), node_adj_offset.squeeze(-1)
-
-def update_encoding(
-    i, walk_nodes, id_enc, con_enc, win_size, adj, batch_iter
-):
-    l = min(i + 1, win_size)
-    id_enc[i + 1, win_size - l:] = \
-        walk_nodes[i + 1] == walk_nodes[i + 1 - l:i + 1]
-    con_enc[i + 1, win_size - l:] = \
-        torch.gather(adj[batch_iter, walk_nodes[i + 1]].T, 0,
-                     walk_nodes[i + 1 - l:i + 1])
-    

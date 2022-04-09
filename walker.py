@@ -14,7 +14,8 @@ def genWalk(
 
     # generate walk for all layers at once
     edge_index_rp = repeat(edge_index, n_layers)
-    edge_feat_rp = repeat(edge_feat, n_layers)
+    if edge_feat != None:
+        edge_feat_rp = repeat(edge_feat, n_layers)
     node_num_rp = repeat(node_num, n_layers)
     adj_rp = repeat(adj, n_layers)
     adj_offset_rp = repeat(adj_offset, n_layers)
@@ -24,16 +25,20 @@ def genWalk(
     walk_nodes = torch.zeros([length + 1, n_graphs], 
                              dtype=torch.long, device=device)
     walk_edges = torch.zeros([length, n_graphs],
-                             dtype=torch.long, device=device)  
+                             dtype=torch.long, device=device)
     s_enc = torch.zeros([length + 1, win_size, n_graphs], 
                         device=device, dtype=torch.long)
     # initial all nodes to be unreachable
     spatial_pos = (max_hop + 1) \
                 * torch.ones([n_graphs, max_node_num, max_node_num], 
-                             dtype=torch.long, device=device)   
-    edge_input = torch.zeros(
-        [n_graphs, max_node_num, max_node_num, max_hop, edge_feat.size(-1)], 
-        dtype=edge_feat.dtype, device=device)    
+                             dtype=torch.long, device=device)
+    if edge_feat != None:
+        edge_input = torch.zeros(
+            [n_graphs, max_node_num, max_node_num, max_hop, 
+             edge_feat.size(-1)], 
+            dtype=edge_feat.dtype, device=device)
+    else:
+        edge_input = None
     # generate all random numbers at once
     choices = torch.randint(0, MAXINT, [length + 1, n_graphs], device=device)
     
@@ -77,21 +82,25 @@ def genWalk(
             batch_iter, walk_nodes[i + 1], walk_nodes[i + 1 - l:i + 1]]
     
     # random walk edge input
-    for l in range(max_hop, 0, -1):
-        for i in range(length + 1 - l):
-            edge_input[batch_iter, walk_nodes_t[:, i], 
-                       walk_nodes_t[:, i + l], :l] \
-                = edge_feat_rp.gather(
-                    1, walk_edges[:, i:i + l].unsqueeze(-1)) + 1
-            edge_input[batch_iter, walk_nodes_t[:, i], 
-                       walk_nodes_t[:, i + l], l:] = 0
-            if not directed:
-                edge_input[batch_iter, walk_nodes_t[:, i + l], 
-                        walk_nodes_t[:, i], :l] \
+    if edge_feat != None:
+        for l in range(max_hop, 0, -1):
+            for i in range(length + 1 - l):
+                edge_input[batch_iter, walk_nodes_t[:, i], 
+                        walk_nodes_t[:, i + l], :l] \
                     = edge_feat_rp.gather(
-                        1, walk_edges[:, i:i + l].flip(1).unsqueeze(-1)) + 1
-                edge_input[batch_iter, walk_nodes_t[:, i + l], 
-                        walk_nodes_t[:, i], l:] = 0
+                        1, walk_edges[:, i:i + l].unsqueeze(-1)) + 1
+                edge_input[batch_iter, walk_nodes_t[:, i], 
+                        walk_nodes_t[:, i + l], l:] = 0
+                if not directed:
+                    edge_input[batch_iter, walk_nodes_t[:, i + l], 
+                            walk_nodes_t[:, i], :l] \
+                        = edge_feat_rp.gather(
+                            1, walk_edges[:, i:i + l].flip(1).unsqueeze(-1)
+                            ) + 1
+                    edge_input[batch_iter, walk_nodes_t[:, i + l], 
+                            walk_nodes_t[:, i], l:] = 0
+    else:
+        walk_edges = None
 
     # l, w, b -> b, w, l
     s_enc = s_enc.permute(2, 1, 0)

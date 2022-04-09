@@ -55,16 +55,19 @@ class RandomWalkConformer(pl.LightningModule):
         if feat_emb:
             self.node_encoder = nn.Embedding(
                     node_emb_dim, hidden_dim, padding_idx=0)
-            self.edge_encoder_attn = nn.Embedding(
-                edge_emb_dim, n_heads, padding_idx=0)
-            self.edge_encoder_conv = nn.Embedding(
-                edge_emb_dim, edge_dim, padding_idx=0)
+            if edge_emb_dim > 0:
+                self.edge_encoder_attn = nn.Embedding(
+                    edge_emb_dim, n_heads, padding_idx=0)
+                self.edge_encoder_conv = nn.Embedding(
+                    edge_emb_dim, edge_dim, padding_idx=0)
         else:
             self.node_encoder = nn.Linear(node_emb_dim, hidden_dim)
-            self.edge_encoder_attn = nn.Linear(edge_emb_dim, n_heads)
-            self.edge_encoder_conv = nn.Linear(edge_emb_dim, edge_dim)
-        self.edge_dis_encoder = nn.Embedding(
-            edge_dis_emb_dim * n_heads * n_heads, 1)
+            if edge_emb_dim > 0:
+                self.edge_encoder_attn = nn.Linear(edge_emb_dim, n_heads)
+                self.edge_encoder_conv = nn.Linear(edge_emb_dim, edge_dim)
+        if edge_dis_emb_dim > 0:
+            self.edge_dis_encoder = nn.Embedding(
+                edge_dis_emb_dim * n_heads * n_heads, 1)
         self.in_degree_encoder = nn.Embedding(
             degree_emb_dim, hidden_dim, padding_idx=0)
         self.out_degree_encoder = nn.Embedding(
@@ -128,12 +131,14 @@ class RandomWalkConformer(pl.LightningModule):
         # embedding node/ edge features
         if self.feat_emb:
             node_feat = self.node_encoder(x).sum(-2)
-            edge_feat = self.edge_encoder_conv(edge_attr).sum(-2)
-            edge_input = self.edge_encoder_attn(edge_input).mean(-2)
+            if edge_attr != None:
+                edge_feat = self.edge_encoder_conv(edge_attr).sum(-2)
+                edge_input = self.edge_encoder_attn(edge_input).mean(-2)
         else:
             node_feat = self.node_encoder(x)
-            edge_feat = self.edge_encoder_conv(edge_attr)
-            edge_input = self.edge_encoder_attn(edge_input)
+            if edge_attr != None:
+                edge_feat = self.edge_encoder_conv(edge_attr)
+                edge_input = self.edge_encoder_attn(edge_input)
 
         # attention bias
         attn_bias = attn_bias.repeat(self.n_layers, 1, 1)
@@ -154,24 +159,25 @@ class RandomWalkConformer(pl.LightningModule):
         attn_bias_[:, :, 1:, 0] = attn_bias_[:, :, 1:, 0] + theta
         
         # edge
-        spatial_pos_ = spatial_pos.clone().half()
-        # x > 1 to x - 1
-        spatial_pos_ = torch.where(
-            spatial_pos_ > 1, spatial_pos_ - 1, spatial_pos_)
-        # b, n, n, dis, h
-        edge_input_flat = edge_input.permute(3, 0, 1, 2, 4).reshape(
-            self.max_hop, -1, self.n_heads)
-        edge_input_flat = torch.bmm(
-            edge_input_flat, self.edge_dis_encoder.weight.reshape(
-                -1, self.n_heads, self.n_heads)[:self.max_hop, :, :])
-        edge_input = edge_input_flat.reshape(
-                self.max_hop, -1, max_node_num, max_node_num, self.n_heads
-            ).permute(1, 2, 3, 0, 4)
-        # b, h, n, n
-        edge_input = (edge_input.sum(-2) 
-                   / spatial_pos_.unsqueeze(-1)).permute(0, 3, 1, 2)
-        attn_bias_[:, :, 1:, 1:] = attn_bias_[:, :, 1:, 1:] + edge_input
-        attn_bias_ = attn_bias_ + attn_bias.unsqueeze(1) # reset unreachable
+        if edge_attr != None:
+            spatial_pos_ = spatial_pos.clone().half()
+            # x > 1 to x - 1
+            spatial_pos_ = torch.where(
+                spatial_pos_ > 1, spatial_pos_ - 1, spatial_pos_)
+            # b, n, n, dis, h
+            edge_input_flat = edge_input.permute(3, 0, 1, 2, 4).reshape(
+                self.max_hop, -1, self.n_heads)
+            edge_input_flat = torch.bmm(
+                edge_input_flat, self.edge_dis_encoder.weight.reshape(
+                    -1, self.n_heads, self.n_heads)[:self.max_hop, :, :])
+            edge_input = edge_input_flat.reshape(
+                    self.max_hop, -1, max_node_num, max_node_num, self.n_heads
+                ).permute(1, 2, 3, 0, 4)
+            # b, h, n, n
+            edge_input = (edge_input.sum(-2) 
+                    / spatial_pos_.unsqueeze(-1)).permute(0, 3, 1, 2)
+            attn_bias_[:, :, 1:, 1:] = attn_bias_[:, :, 1:, 1:] + edge_input
+            attn_bias_ = attn_bias_ + attn_bias.unsqueeze(1) # reset unreachable
 
         # convolution module encoding
         s_enc = self.spatial_encoder_conv(s_enc).squeeze(-1)
@@ -184,12 +190,19 @@ class RandomWalkConformer(pl.LightningModule):
         vn_feat = self.vn_encoder.weight.unsqueeze(0).repeat(n_graphs, 1, 1)
         node_feat = torch.cat([vn_feat, node_feat], 1) # vn at index 0
 
-        for i, layer in enumerate(self.layers):
-            node_feat = layer(
-                node_feat, attn_bias_[i * n_graphs:(i + 1) * n_graphs], 
-                edge_feat, walk_nodes[i * n_graphs:(i + 1) * n_graphs], 
-                walk_edges[i * n_graphs:(i + 1) * n_graphs], 
-                s_enc[i * n_graphs:(i + 1) * n_graphs])
+        if edge_attr != None:
+            for i, layer in enumerate(self.layers):
+                node_feat = layer(
+                    node_feat, attn_bias_[i * n_graphs:(i + 1) * n_graphs], 
+                    edge_feat, walk_nodes[i * n_graphs:(i + 1) * n_graphs], 
+                    walk_edges[i * n_graphs:(i + 1) * n_graphs], 
+                    s_enc[i * n_graphs:(i + 1) * n_graphs])
+        else:
+            for i, layer in enumerate(self.layers):
+                node_feat = layer(
+                    node_feat, attn_bias_[i * n_graphs:(i + 1) * n_graphs], 
+                    None, walk_nodes[i * n_graphs:(i + 1) * n_graphs], 
+                    None, s_enc[i * n_graphs:(i + 1) * n_graphs])
         out = self.ln(node_feat)
         # only use virtual node to represent the graph
         out = self.out(out[:, 0, :])

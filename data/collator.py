@@ -22,7 +22,8 @@ class Batch:
         self.x          = self.x.to(device)
         self.y          = self.y.to(device)
         self.edge_index = self.edge_index.to(device)
-        self.edge_attr  = self.edge_attr.to(device)
+        if self.edge_attr != None:
+            self.edge_attr  = self.edge_attr.to(device)
         self.adj        = self.adj.to(device)
         self.in_degree  = self.in_degree.to(device)
         self.out_degree = self.out_degree.to(device)
@@ -44,13 +45,16 @@ def collate_fn(items, max_node):
     
     
     max_node_num = max(n for n in node_nums)
-    max_edge_num = max(e.size(0) for e in edge_attrs)
+    max_edge_num = max(e.size(1) for e in edge_indices)
 
     x = torch.cat([pad_2d(i, max_node_num) for i in xs])
     y = torch.cat(ys)
     edge_index = torch.cat(
         [pad_edge_index(i, max_edge_num) for i in edge_indices])
-    edge_attr = torch.cat([pad_2d(i, max_edge_num) for i in edge_attrs])
+    if edge_attrs[0] != None:
+        edge_attr = torch.cat([pad_2d(i, max_edge_num) for i in edge_attrs])
+    else:
+        edge_attr = None
     adj = torch.cat([pad_adj(i, max_node_num) for i in adjs])
     in_degree = torch.cat(
         [pad_1d_with_padding(i, max_node_num) for i in in_degrees])

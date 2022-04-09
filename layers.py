@@ -123,13 +123,18 @@ class ConvModule(nn.Module):
 
         # b, n, f -> b, f, n
         x = x[batch_iter, walk_nodes + 1].permute(0, 2, 1)  # start from 1
-        walk_edge_feat = edge_feat[batch_iter, walk_edges].permute(0, 2, 1)
-        pad_edge_feat = torch.zeros(
-            [bs, walk_edge_feat.size(1), 1], device=device)
-        walk_edge_feat_i = torch.cat([pad_edge_feat, walk_edge_feat], 2)
-        walk_edge_feat_o = torch.cat([walk_edge_feat, pad_edge_feat], 2)
-        
-        x = torch.cat([x, walk_edge_feat_i, walk_edge_feat_o, encodings], 1)
+        if edge_feat != None:
+            walk_edge_feat = edge_feat[batch_iter, walk_edges].permute(
+                0, 2, 1)
+            pad_edge_feat = torch.zeros(
+                [bs, walk_edge_feat.size(1), 1], device=device)
+            walk_edge_feat_i = torch.cat([pad_edge_feat, walk_edge_feat], 2)
+            walk_edge_feat_o = torch.cat([walk_edge_feat, pad_edge_feat], 2)
+            
+            x = torch.cat([x, walk_edge_feat_i, walk_edge_feat_o, encodings],
+                          1)
+        else:
+            x = torch.cat([x, encodings], 1)
         x = self.pc1(x)
         x = self.glu(x)
         x = self.dc(x)

@@ -4,7 +4,11 @@ from torch_geometric.utils import sort_edge_index, to_undirected
 
 def preprocess_item(item, discrete=True, force_undirected=False, 
                     edge_feat=True):
-    n_nodes = item.x.size(0)
+    if item.x:
+        n_nodes = item.x.size(0)
+    else:
+        n_nodes = item.num_nodes
+        item.x = torch.zeros([n_nodes, 1])
 
     if force_undirected:
         item.edge_index, item.edge_attr = to_undirected(

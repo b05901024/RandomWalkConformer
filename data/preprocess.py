@@ -4,7 +4,7 @@ from torch_geometric.utils import sort_edge_index, to_undirected
 
 def preprocess_item(item, discrete=True, force_undirected=False, 
                     edge_feat=True):
-    if item.x:
+    if item.x != None:
         n_nodes = item.x.size(0)
     else:
         n_nodes = item.num_nodes

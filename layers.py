@@ -54,7 +54,7 @@ class MultiHeadAttention(nn.Module):
         self.out = nn.Linear(n_heads * self.attn_dim, hidden_dim)
         self.dropout = nn.Dropout(dropout)
     
-    def forward(self, x, attn_bias):
+    def forward(self, x, attn_bias, walk_nodes):
         bs = x.size(0)
 
         x = self.ln(x)
@@ -70,9 +70,16 @@ class MultiHeadAttention(nn.Module):
         attn = attn + attn_bias
         attn = torch.softmax(attn, -1)
 
+        counts = torch.zeros([bs, x.size(1)], device=x.device)
+        for i in range(bs):
+            _, count = walk_nodes[i].unique(return_counts=True)
+            counts[i, :count.size(0)] += count
+        weight = counts / walk_nodes.size(1)
+
         out = torch.matmul(attn, v)             # b, h, n, f
         out = out.transpose(1, 2).contiguous()  # b, n, h, f
         out = out.view(bs, -1, self.n_heads * self.attn_dim)
+        out = out * weight.unsqueeze(2)
         out = self.out(out)
         out = self.dropout(out)
         return out
@@ -176,7 +183,7 @@ class ConformerBlock(nn.Module):
         self, x, attn_bias, edge_feat, walk_nodes, walk_edges, encodings
     ):
         x = self.ff1(x) * 0.5 + x
-        x = self.attn(x, attn_bias) + x
+        x = self.attn(x, attn_bias, walk_nodes) + x
         x = self.conv(x, edge_feat, walk_nodes, walk_edges, encodings) + x
         x = self.ff2(x) * 0.5 + x
         x = self.ln(x)

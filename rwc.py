@@ -196,13 +196,13 @@ class RandomWalkConformer(pl.LightningModule):
                     node_feat, attn_bias_[i * n_graphs:(i + 1) * n_graphs], 
                     edge_feat, walk_nodes[i * n_graphs:(i + 1) * n_graphs], 
                     walk_edges[i * n_graphs:(i + 1) * n_graphs], 
-                    s_enc[i * n_graphs:(i + 1) * n_graphs])
+                    s_enc[i * n_graphs:(i + 1) * n_graphs], n_nodes)
         else:
             for i, layer in enumerate(self.layers):
                 node_feat = layer(
                     node_feat, attn_bias_[i * n_graphs:(i + 1) * n_graphs], 
                     None, walk_nodes[i * n_graphs:(i + 1) * n_graphs], 
-                    None, s_enc[i * n_graphs:(i + 1) * n_graphs])
+                    None, s_enc[i * n_graphs:(i + 1) * n_graphs], n_nodes)
         out = self.ln(node_feat)
         # only use virtual node to represent the graph
         out = self.out(out[:, 0, :])

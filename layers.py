@@ -62,6 +62,13 @@ class MultiHeadAttention(nn.Module):
         k = self.k(x).view(bs, -1, self.n_heads, self.attn_dim)
         v = self.v(x).view(bs, -1, self.n_heads, self.attn_dim)
 
+        counts = torch.zeros([bs, x.size(1)], device=x.device)
+        for i in range(bs):
+            _, count = walk_nodes[i].unique(return_counts=True)
+            counts[i, :count.size(0)] += count
+        weight = counts / walk_nodes.size(1) * n_nodes.unsqueeze(1)
+        v = v * weight.view(bs, -1, 1, 1)
+
         q = q.transpose(1, 2)       # b, h, n, f
         k = k.permute(0, 2, 3, 1)   # b, h, f, n
         v = v.transpose(1, 2)       # b, h, n, f
@@ -70,16 +77,10 @@ class MultiHeadAttention(nn.Module):
         attn = attn + attn_bias
         attn = torch.softmax(attn, -1)
 
-        counts = torch.zeros([bs, x.size(1)], device=x.device)
-        for i in range(bs):
-            _, count = walk_nodes[i].unique(return_counts=True)
-            counts[i, :count.size(0)] += count
-        weight = counts / walk_nodes.size(1) * n_nodes.unsqueeze(1)
-
         out = torch.matmul(attn, v)             # b, h, n, f
         out = out.transpose(1, 2).contiguous()  # b, n, h, f
         out = out.view(bs, -1, self.n_heads * self.attn_dim)
-        out = out * weight.unsqueeze(2)
+        out = out
         out = self.out(out)
         out = self.dropout(out)
         return out

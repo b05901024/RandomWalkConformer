@@ -63,9 +63,10 @@ class MultiHeadAttention(nn.Module):
         v = self.v(x).view(bs, -1, self.n_heads, self.attn_dim)
 
         counts = torch.zeros([bs, x.size(1)], device=x.device)
-        for i in range(bs):
-            _, count = walk_nodes[i].unique(return_counts=True)
-            counts[i, :count.size(0)] += count
+        batch_iter = torch.arange(bs, dtype=torch.long, device=x.device)
+        for i in range(walk_nodes.size(1)):
+            counts[batch_iter, walk_nodes[:, i] + 1] += 1
+        counts[:, 0] = walk_nodes.size(1) / n_nodes
         weight = counts / walk_nodes.size(1) * n_nodes.unsqueeze(1)
         v = v * weight.view(bs, -1, 1, 1)
 
